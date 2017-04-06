@@ -1,0 +1,53 @@
+package main
+public
+	system Sharing_Router
+		
+	end Sharing_Router;
+	system implementation Sharing_Router.impl
+		subcomponents
+			VIRTUAL_NC: system Virtual_NetworkCard;
+			UI: system User_Interface;
+			CHAT_ROOM: system Chat_Room;
+			APP_MONITOR: system App_Monitor;
+			ALGORITHM: system Algorithm;
+			ROUTER: system Router;
+			PLATFORM_ABSTRACTION: system Platform_Abstraction;
+	end Sharing_Router.impl;
+	
+	system Virtual_NetworkCard
+		
+	end Virtual_NetworkCard;
+	
+	system User_Interface
+		
+	end User_Interface;
+	
+	system Chat_Room
+		
+	end Chat_Room;
+	
+	system App_Monitor
+		
+	end App_Monitor;
+	
+	system Router
+		
+	end Router;
+	
+	system implementation Router.impl
+		subcomponents
+			SECURITY: system Security;
+	end Router.impl;
+	
+	system Security
+		
+	end Security;
+	
+	system Algorithm
+		
+	end Algorithm;
+	
+	system Platform_Abstraction
+		
+	end Platform_Abstraction;
+end main;
