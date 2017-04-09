@@ -1,48 +1,124 @@
 package main
+
 public
+
 	system Sharing_Router
-		
 	end Sharing_Router;
+
 	system implementation Sharing_Router.impl
 		subcomponents
-			VIRTUAL_NC: system Virtual_NetworkCard;
+
+			VIRTUAL_NC: device Virtual_NetworkCard;
 			UI: system User_Interface;
+			CONTROLLER: system Controller;
 			CHAT_ROOM: system Chat_Room;
 			APP_MONITOR: system App_Monitor;
-			ALGORITHM: system Algorithm.impl;
-			ROUTER: device Router.impl;
-			PLATFORM_ABSTRACTION: system Platform_Abstraction.impl;
-			
-		
-			
+			ALGORITHM: system Algorithm;
+			ROUTER: device Router;
+			PLATFORM_ABSTRACTION: system Platform_Abstraction;
+            SECURITY:system Security; 
+		connections
+
+			c0: port UI.Processed_User_Input -> CONTROLLER.UI_Input;
+			c1: port APP_MONITOR.App_stat -> CONTROLLER.App_Stat;
+			c2: port CONTROLLER.UI_Display_Data -> UI.UI_Display_Data;
+			c3: port CONTROLLER.Allocation_req -> ALGORITHM.Allocation_req;
+			c4: port ALGORITHM.BW_Alloc_Table -> VIRTUAL_NC.BW_Alloc_Table;
+			c5: port VIRTUAL_NC.Packet -> ROUTER.Packet;  
+			c6: port ROUTER.packets_to_destination_device -> SECURITY.packets_to_destination_device;
+			c7: port ALGORITHM.bandwidth_allocation_to_user -> ROUTER.bandwidth_allocation_to_user;
+
 	end Sharing_Router.impl;
-	
-	system Virtual_NetworkCard
-		
+
+	device Virtual_NetworkCard
+		--includes TCP/IP
+		features
+			App_message: in data port;
+			Packet: out data port;
+			BW_Alloc_Table: in data port;
+
 	end Virtual_NetworkCard;
+
+	
+	device implementation Virtual_NetworkCard.impl
+	end Virtual_NetworkCard.impl;
+
 	
 	system User_Interface
-		
+		features
+			User_Input: in event port;
+			UI_Display_Data: in data port;
+			Processed_User_Input: out event port;
+			UI_Display: out event port;
+
 	end User_Interface;
+
 	
+	system implementation User_Interface.impl
+		subcomponents
+		--App Viewer allows user both to view bandwidth consumption and change allocation
+			APP_VIEWER: system App_Viewer;
+		--Chat interface is the display of chat room
+			CHAT_INTERFACE: system Chat_Interface;
+	end User_Interface.impl;
+
+	system App_Viewer
+		features
+			--proessed data about application statistics ready for display
+			App_stat_struc: in data port;
+			--the display about app stat
+			App_stat_display: out data port;
+	end App_Viewer;
+
+
+	system Chat_Interface
+		features
+			User_Input: in event port;
+			Chat_Msg_out: out event port;
+			
+	end Chat_Interface;
+
+
 	system Chat_Room
-		
+		--When users chat, pop up options that conveniently change BW allocation
+		--Exchange chat message between UI's chat interface
+		features
+			Chat_msg_in: in event port;
+			Chat_msg_out: out event port;
 	end Chat_Room;
+
 	
 	system App_Monitor
-		
+		features
+			Raw_app_stat: in data port;
+			App_stat: out data port;
 	end App_Monitor;
+
+
+	system Controller
+		features
+
+			Chat_msg_in: out event port;
+			Chat_msg_out: in event port;
+			UI_input: in event port;
+			App_stat: in data port;
+			UI_display_data: out data port;
+			--User's requirement about allocation
+			Allocation_req: out data port;
+
+	end Controller;
 	
 	system implementation Algorithm.impl
     end Algorithm.impl;
     
 	system Algorithm
 		features		
-    	allocation_requirement : in data port;
+    	Allocation_req : in data port;
   		application_type : in data port; 
-  		number_of_users : out data port;
+  		number_of_users : in data port;
   		bandwidth_allocation_to_user : out data port; 
-  		total_bandwidth_utilization : out data port; 
+  		total_bandwidth_utilization : out data port;
+  		BW_Alloc_Table:out data port; 
 	end Algorithm;
 	
 	
@@ -52,21 +128,23 @@ public
 	
 	device Router
 		features		
-    	packets_from_user_device : in data port;
-  		bandwidth_from_ISP : in data port; 
-  		number_of_users : in data port;
-  		bandwidth_allocation_to_user : out data port; 
+    	Packet : in data port;
+  		bandwidth_from_ISP : in data port;
+  		bandwidth_allocation_to_user : in data port; 
   		packets_to_destination_device: out data port;
   		
 	end Router;
 	
 	
 	system Security
-		features		
-    	user_authorization : in data port;
-  		attacks_identification : in data port; 
+		features
+		packets_to_destination_device: in data port;	
+    	user_authorization : in event port;
+  		attacks_identification : in event port; 
   		routing_table : in data port;
-  		secure_bandwidth_sharing : out data port; 
+  		secure_bandwidth_sharing : out data port;
+  		secure_packets: out data port;
+  		 
 	end Security;
 
 	
@@ -79,6 +157,7 @@ public
   		platform_version : in data port;
   		platform_abstraction_for_version : out data port; 
 	end Platform_Abstraction;
+	
 end main;
 
 
