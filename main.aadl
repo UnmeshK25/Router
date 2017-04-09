@@ -9,9 +9,12 @@ public
 			UI: system User_Interface;
 			CHAT_ROOM: system Chat_Room;
 			APP_MONITOR: system App_Monitor;
-			ALGORITHM: system Algorithm;
-			ROUTER: system Router;
-			PLATFORM_ABSTRACTION: system Platform_Abstraction;
+			ALGORITHM: system Algorithm.impl;
+			ROUTER: device Router.impl;
+			PLATFORM_ABSTRACTION: system Platform_Abstraction.impl;
+			
+		
+			
 	end Sharing_Router.impl;
 	
 	system Virtual_NetworkCard
@@ -30,24 +33,52 @@ public
 		
 	end App_Monitor;
 	
-	system Router
-		
-	end Router;
-	
-	system implementation Router.impl
-		subcomponents
-			SECURITY: system Security;
-	end Router.impl;
-	
-	system Security
-		
-	end Security;
-	
+	system implementation Algorithm.impl
+    end Algorithm.impl;
+    
 	system Algorithm
-		
+		features		
+    	allocation_requirement : in data port;
+  		application_type : in data port; 
+  		number_of_users : out data port;
+  		bandwidth_allocation_to_user : out data port; 
+  		total_bandwidth_utilization : out data port; 
 	end Algorithm;
 	
-	system Platform_Abstraction
+	
+	device implementation Router.impl
 		
+	end Router.impl;
+	
+	device Router
+		features		
+    	packets_from_user_device : in data port;
+  		bandwidth_from_ISP : in data port; 
+  		number_of_users : in data port;
+  		bandwidth_allocation_to_user : out data port; 
+  		packets_to_destination_device: out data port;
+  		
+	end Router;
+	
+	
+	system Security
+		features		
+    	user_authorization : in data port;
+  		attacks_identification : in data port; 
+  		routing_table : in data port;
+  		secure_bandwidth_sharing : out data port; 
+	end Security;
+
+	
+	system implementation Platform_Abstraction.impl
+    end Platform_Abstraction.impl;
+    
+	system Platform_Abstraction
+		features		
+    	user_device_operating_system_platform : in data port;
+  		platform_version : in data port;
+  		platform_abstraction_for_version : out data port; 
 	end Platform_Abstraction;
 end main;
+
+
