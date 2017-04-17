@@ -1,13 +1,12 @@
-package main
-
+package router
 public
-
+	with   
+	 ErrorLibrary;  --predeclared error types in Error Modeling anned
 	system Sharing_Router
+		
 	end Sharing_Router;
-
 	system implementation Sharing_Router.impl
 		subcomponents
-
 			VIRTUAL_NC: device Virtual_NetworkCard;
 			UI: system User_Interface;
 			CONTROLLER: system Controller;
@@ -15,44 +14,127 @@ public
 			APP_MONITOR: system App_Monitor;
 			ALGORITHM: system Algorithm;
 			ROUTER: device Router;
+			SECURITY: system Security;
 			PLATFORM_ABSTRACTION: system Platform_Abstraction;
-            SECURITY:system Security; 
 		connections
-
 			c0: port UI.Processed_User_Input -> CONTROLLER.UI_Input;
 			c1: port APP_MONITOR.App_stat -> CONTROLLER.App_Stat;
 			c2: port CONTROLLER.UI_Display_Data -> UI.UI_Display_Data;
 			c3: port CONTROLLER.Allocation_req -> ALGORITHM.Allocation_req;
 			c4: port ALGORITHM.BW_Alloc_Table -> VIRTUAL_NC.BW_Alloc_Table;
-			c5: port VIRTUAL_NC.Packet -> ROUTER.Packet;  
-			c6: port ROUTER.packets_to_destination_device -> SECURITY.packets_to_destination_device;
-			c7: port ALGORITHM.bandwidth_allocation_to_user -> ROUTER.bandwidth_allocation_to_user;
-
+			c5: port CONTROLLER.App_type -> ALGORITHM.application_type;
+			c6: port VIRTUAL_NC.Packet -> SECURITY.packets;
+			c6_1: port SECURITY.secure_packets -> ROUTER.packets_from_user_device;
+			c7: port CONTROLLER.number_of_users -> ALGORITHM.number_of_users;
+			c8: port VIRTUAL_NC.Control_msg -> CONTROLLER.Control_msg;
+			c9: port PLATFORM_ABSTRACTION.encapsulated_user_input -> UI.User_Input;
+			c10: port UI.UI_Display -> PLATFORM_ABSTRACTION.display;
 	end Sharing_Router.impl;
+	
+annex EMV2
 
+{**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
+	error types
+	    StatusError: type;
+	    ExernalError: Type;
+	    FunctionalError: type;
+	    DeviceError: type;
+	    SystemFailureError: type;
+		ExternalApplicationError: type extends ExernalError;
+		BandwidthConsumptionError: type extends FunctionalError;
+        VirtualNetworkCardError: type extends DeviceError;
+        AppMonitorError: type extends FunctionalError;
+		RoutingTableComputationError: type extends FunctionalError;
+		SecuritySystemFailureError: type extends SystemFailureError;
+		RouterFailureError: type extends DeviceError;		
+		
+	end types;
+	
+	error behavior FailStop
+	  use types router;
+	  events fail: error event;
+	  states 
+	    working: initial state; 
+	    failed : state;
+	  transitions
+	    working -[fail]-> failed;
+	    
+	end behavior;
+	
+	
+	error behavior VirtualNetworkCard_Failure               
+	  use types router;
+	  events VNC_fail: error event;
+	  states 
+	    Virtual_Network_Card_working: initial state; 
+	    Virtual_Network_Card_failed : state;
+	  transitions
+	    Virtual_Network_Card_working -[VNC_fail]-> Virtual_Network_Card_failed;	    
+	end behavior;
+	
+	error behavior ApplicationMonitor_Failure             
+	  use types router;
+	  events AppMonitor_fail: error event;
+	  states 
+	    ApplicationMonitor_working: initial state; 
+	    ApplicationMonitor_working_failed : state;
+	  transitions
+	    ApplicationMonitor_working -[AppMonitor_fail]-> ApplicationMonitor_working_failed;	    
+	end behavior;
+	
+	error behavior Routing_Failure               
+	  use types router;
+	  events Routing_fail: error event;
+	  states 
+	    Router_working: initial state; 
+	    Router_working_failed : state;
+	  transitions
+	    Router_working -[Routing_fail]-> Router_working_failed;	    
+	end behavior;**};
+	
+	
 	device Virtual_NetworkCard
 		--includes TCP/IP
 		features
 			App_message: in data port;
 			Packet: out data port;
 			BW_Alloc_Table: in data port;
+			Control_msg: out data port;
+			
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+     BW_Alloc_Table: in propagation
+    {ItemValueError};
 
+  end propagations;
+  **};
 	end Virtual_NetworkCard;
-
 	
 	device implementation Virtual_NetworkCard.impl
+		
 	end Virtual_NetworkCard.impl;
-
 	
 	system User_Interface
 		features
-			User_Input: in event port;
 			UI_Display_Data: in data port;
+			UI_Display: out data port;
+			
+            User_Input: in event port;
 			Processed_User_Input: out event port;
-			UI_Display: out event port;
+annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    UI_Display: out propagation
+    {ValueRelatedError,SubtleValueError};
+     Processed_User_Input: out propagation
+    {OutOfRange,SubtleValueError,InconsistentValue};
 
+  end propagations;
+  **};
 	end User_Interface;
-
 	
 	system implementation User_Interface.impl
 		subcomponents
@@ -61,64 +143,119 @@ public
 		--Chat interface is the display of chat room
 			CHAT_INTERFACE: system Chat_Interface;
 	end User_Interface.impl;
-
+	
 	system App_Viewer
 		features
 			--proessed data about application statistics ready for display
 			App_stat_struc: in data port;
 			--the display about app stat
 			App_stat_display: out data port;
+			
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    App_stat_display: out propagation
+    {ValueRelatedError,SubtleValueError,StatusError}; --Displays wrong value(information)
+
+  end propagations;
+  **};
+			
 	end App_Viewer;
-
-
+	
 	system Chat_Interface
 		features
 			User_Input: in event port;
+			Chat_Msg_in: out event port;
 			Chat_Msg_out: out event port;
-			
 	end Chat_Interface;
-
-
+	
 	system Chat_Room
 		--When users chat, pop up options that conveniently change BW allocation
 		--Exchange chat message between UI's chat interface
+		--Chat Room takes chat message input, and outputs chat message
 		features
 			Chat_msg_in: in event port;
 			Chat_msg_out: out event port;
 	end Chat_Room;
-
+	
 	
 	system App_Monitor
 		features
 			Raw_app_stat: in data port;
 			App_stat: out data port;
+		
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    App_stat: out propagation
+    {StatusError,SubtleValueError};
+
+    end propagations;
+  **};
 	end App_Monitor;
-
-
+	
 	system Controller
 		features
-
-			Chat_msg_in: out event port;
-			Chat_msg_out: in event port;
-			UI_input: in event port;
 			App_stat: in data port;
 			UI_display_data: out data port;
 			--User's requirement about allocation
 			Allocation_req: out data port;
+			App_type: out data port;
+			number_of_users: out data port;
+			Control_msg: in data port;
+			
+            Chat_msg_in: out event port;
+			Chat_msg_out: in event port;
+			UI_input: in event port;
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    Allocation_req: out propagation
+    {ServiceError,OutOfRange,SubtleValueError};
+    App_type: out propagation
+    {OutOfRange};
+    UI_input: in propagation
+    {OutOfRange,SubtleValueError,InconsistentValue};
+    App_stat: in propagation
+    {StatusError,SubtleValueError};
 
+    end propagations;
+  **};
 	end Controller;
+	
+	
 	
 	system implementation Algorithm.impl
     end Algorithm.impl;
     
 	system Algorithm
 		features		
+    	allocation_requirement : in data port;
+  		bandwidth_allocation_to_user : out data port; 
     	Allocation_req : in data port;
   		application_type : in data port; 
   		number_of_users : in data port;
-  		bandwidth_allocation_to_user : out data port; 
-  		total_bandwidth_utilization : out data port;
-  		BW_Alloc_Table:out data port; 
+  		BW_Alloc_Table : out data port; 
+  		total_bandwidth_utilization : out data port; 
+  		
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    bandwidth_allocation_to_user: out propagation
+    {ServiceError,RateError,OutOfRange};
+    BW_Alloc_Table: out propagation
+    {ItemValueError};
+    Allocation_req: in propagation
+    {ServiceError,OutOfRange,SubtleValueError};
+     application_type: in propagation
+    {OutOfRange};
+
+    end propagations;
+  **};
 	end Algorithm;
 	
 	
@@ -128,23 +265,49 @@ public
 	
 	device Router
 		features		
-    	Packet : in data port;
-  		bandwidth_from_ISP : in data port;
-  		bandwidth_allocation_to_user : in data port; 
+    	packets_from_user_device : in data port;
+  		bandwidth_from_ISP : in data port; 
+  		number_of_users : in data port;
+  		bandwidth_allocation_to_user : out data port; 
   		packets_to_destination_device: out data port;
   		
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    bandwidth_allocation_to_user: out propagation
+     {ServiceError,RateError,OutOfRange};
+    packets_to_destination_device: out propagation
+    {LateDelivery,SequenceError,InconsistentValue};
+    packets_from_user_device: in propagation
+    {LateDelivery,SequenceError,InconsistentValue};
+
+    end propagations;
+  **};
 	end Router;
 	
 	
 	system Security
-		features
-		packets_to_destination_device: in data port;	
-    	user_authorization : in event port;
-  		attacks_identification : in event port; 
+		features		
+    	user_authorization : in data port;
+  		attacks_identification : in data port; 
   		routing_table : in data port;
-  		secure_bandwidth_sharing : out data port;
+  		secure_bandwidth_sharing : out data port; 
+    	packets : in data port;
+  		security_rule : in data port; 
   		secure_packets: out data port;
-  		 
+  		
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    secure_bandwidth_sharing: out propagation
+    {ServiceError,RateError,OutOfRange};
+    secure_packets: out propagation
+    {LateDelivery,SequenceError,InconsistentValue};
+
+    end propagations;
+  **};
 	end Security;
 
 	
@@ -156,8 +319,21 @@ public
     	user_device_operating_system_platform : in data port;
   		platform_version : in data port;
   		platform_abstraction_for_version : out data port; 
+  		display: in data port;
+  		platform_specific_display: out data port;
+  	    user_input: in event port;
+  		encapsulated_user_input: out event port;
+  		
+  annex EMV2 
+  {** 
+    use types ErrorLibrary, Isolette;
+    error propagations
+    display: in propagation
+    {ValueRelatedError,SubtleValueError,StatusError};
+    user_input: in propagation
+    {ValueRelatedError,SubtleValueError};
+
+  end propagations;
+  **};
 	end Platform_Abstraction;
-	
-end main;
-
-
+end router;
